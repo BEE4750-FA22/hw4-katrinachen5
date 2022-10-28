@@ -1,6 +1,6 @@
 ---
 title: "BEE 4750/5750 Homework 4"
-author: "Your name here (your netID here)"
+author: "Katrina Chen (kc778)"
 date: `j import Dates; Dates.Date(Dates.now())`
 weave_options:
     term: false
@@ -19,23 +19,102 @@ Pkg.instantiate()
 # Problem 1
 
 ## Problem 1.1
+```julia
+#given information
+disposal_facility = ["landfill", "recycling", "WTE"];
+capacity = [200, 350, 150]; #in Mg/d
+fixed_cost = [2000, 1500, 2500]; #in $/d
+tipping_fee = [50, 7, 60]; #in $/Mg
+recycling_cost = [0, 45, 0]; #in $/Mg
+
+transportation_cost = 1.5; #in $/Mg-km
+
+dist_to = ["landfill", "MRF", "WTE"];
+dist_1 = [30, 5, 15]; #in km
+dist_2 = [25, 15, 10]; #in km
+dist_MRF = [32, 0, 15]; #in km
+dist_LF = [0, 32, 18]; #in km
+dist_WTE = [18, 15, 0]; #in km
+
+source = ["city 1", "city 2"];
+production = [100, 170]; #in Mg/day
+
+component = ["Food", "Paper", "Plastics", "Textiles", "Rubber", "Wood", "Yard", "Glass", "Ferrous", "Aluminum", "Metals", "Misc"];
+total_mass = [0.15, 0.4, 0.05, 0.03, 0.02, 0.05, 0.18, 0.04, 0.02, 0.02, 0.01, 0.03];
+combustion_ash_p = [0.08, 0.07, 0.05, 0.1, 0.15, 0.02, 0.02, 1, 1, 1, 1, 0.7];
+MRF_recycling_p = [0, 0.55, 0.15, 0.1, 0, 0.3, 0.4, 0.6, 0.75, 0.8, 0.5, 0];
+
+
+recycling_frac = sum(total_mass .* MRF_recycling_p);
+ash_frac = sum(total_mass .* combustion_ash_p);
+
+```
+The overall recycling fraction for the waste produced is
+```julia
+print(round(recycling_frac, digits=3))
+```
+
+The overall combustion ash fraction for the waste produced is
+```julia
+print(round(ash_frac, digits=3))
+```
 
 ## Problem 1.2
+There are three main decision variables. 
+One decision variable, $W_{ij}$, is the waste transported from city i to disposal j. This is measured in Mg/day.
+Another decision variable, $R_{kj}$, is the residual waste transported from disposal k to disposal j. This is measured in Mg/day.
+The last decision variabe is the operational status of disposal j, $Y_j$. This is a binary variable and its status are on/off.
+
+```julia
+using JuMP
+using Cbc
+
+waste = Model(Cbc.Optimizer);
+I = 1:length(source);
+J = 1:length(disposal_facility);
+
+@variable(waste, W[i in I, j in J] >= 0);
+@variable(waste, R[k in J, j in J] >= 0);
+@variable(waste, Y[j in J], Bin);
+```
 
 ## Problem 1.3
+```julia
+
+```
 
 ## Problem 1.4
+```julia
+
+```
 
 ## Problem 1.5
+```julia
+optimize!(waste)
+objective_value(waste)
+```
 
 ## Problem 1.6
+```julia
+
+```
 
 # Problem 2
 
 ## Problem 2.1
+```julia
+
+```
 
 ## Problem 2.2
+```julia
+
+```
 
 ## Problem 2.3
+```julia
+
+```
 
 # References
+Lecutre 13 from https://viveks.me/environmental-systems-analysis/schedule/
