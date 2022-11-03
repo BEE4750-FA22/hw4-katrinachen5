@@ -39,15 +39,16 @@ dist_WTE = [0, 15, 18]; #in km
 source = ["city 1", "city 2"];
 production = [100, 170]; #in Mg/day
 
-component = ["Food", "Paper", "Plastics", "Textiles", "Rubber", "Wood", "Yard", "Glass", "Ferrous", "Aluminum", "Metals", "Misc"];
+component = ["Food", "Paper", "Plastics", "Textiles", "Rubber", 
+    "Wood", "Yard", "Glass", "Ferrous", "Aluminum", "Metals", "Misc"];
 total_mass = [0.15, 0.4, 0.05, 0.03, 0.02, 0.05, 0.18, 0.04, 0.02, 0.02, 0.01, 0.03];
 combustion_ash_p = [0.08, 0.07, 0.05, 0.1, 0.15, 0.02, 0.02, 1, 1, 1, 1, 0.7];
 MRF_recycling_p = [0, 0.55, 0.15, 0.1, 0, 0.3, 0.4, 0.6, 0.75, 0.8, 0.5, 0];
 
+#determining overall recycling and ash fractions
 
 recycling_frac = sum(total_mass .* MRF_recycling_p);
 ash_frac = sum(total_mass .* combustion_ash_p);
-
 ```
 The overall recycling fraction for the waste produced is
 ```julia
@@ -101,11 +102,12 @@ For transportation cost, we have:
 We want to minimize the sum of all these costs as our objective.
 
 ```julia
-@objective(waste, Min, sum([82.5 31.5 95; 75 46.51 87.5] .* W) + sum([0 0 77; 82.5 0 98; 0 0 0] .* R) + sum([2500, 1500, 2000] .* Y));
+@objective(waste, Min, sum([82.5 31.5 95; 75 46.51 87.5] .* W) 
+    + sum([0 0 77; 82.5 0 98; 0 0 0] .* R) + sum([2500, 1500, 2000] .* Y));
 ```
 
 ## Problem 1.4
-One constraint is that all the waste and recycling must stay within the disposal facility's capacities.  
+One constraint is that all the waste and recycling must stay within the disposal facility's capacities. \\
 For WTE, 
 ```math
 W_{1,1} + W_{2,1} + R_{2,1} ≤ 150
@@ -126,7 +128,14 @@ Additionally, any waste from the MRF must equal the nonrecycled waste that enter
 ```math
 R_{2,1} + R_{2,3} = (1-recycling_{fraction}) * (W_{1,2} + W_{2,2})
 ```
-Lastly, we needd to make sure that the waste streams are nonnegative. 
+Lastly, we need to define the binary variable and make sure that the waste streams are nonnegative. 
+```math
+Y_1 = 0\, if\, W_{1,1} + W_{2,1} + R_{2,1} = 0.\, Else,\, Y_1 = 1. \\
+Y_2 = 0\, if\, W_{2,1} + W_{2,2} = 0.\, Else,\, Y_2 = 1. \\
+Y_3 = 1 \\
+W_{i,j} ≥ 0 \\
+R_{i,j} ≥ 0 \\
+```
 
 ```julia
 @constraint(waste, city[i in I], sum(W[i,:]) == production[i]);
@@ -152,25 +161,35 @@ optimize!(waste)
 ```
 
 ## Problem 1.6
-The objective value in dollars is:
+The objective value or cost of disposal in dollars is:
 ```julia
 round(objective_value(waste), digits=2)
 ```
+
+
 The statuses of the disposal are
 ```julia
 value.(Y)
 ```
-The waste transported to each city is
+
+
+The waste transported from each city in Mg/day is
 ```julia
 value.(W)
 ```
-The residual waste transported to each facility is 
+
+
+The residual waste transported between each facility in Mg/day is 
 ```julia
 value.(R)
 ```
 
+
 From these values, we get the diagram below:
-![Waste Management Diagram](waste1.png).
+![Waste Management Diagram](waste1.png)
+
+We see that the recycling facility (MRF) will not be used in this case.
+Only the LF and WTE facilities are used. 
 
 # Problem 2
 
@@ -206,7 +225,8 @@ J = 1:length(disposal_facility);
 @variable(waste_c, Rc[k in J, j in J] >= 0);
 @variable(waste_c, Yc[j in J], Bin);
 
-@objective(waste_c, Min, sum([105 34.01 110; 95 54.01 100] .* Wc) + sum([0 0 86; 105 0 114; 0 0 0] .* Rc) + sum([2500, 1500, 2000] .* Yc));
+@objective(waste_c, Min, sum([105 34.01 110; 95 54.01 100] .* Wc) 
+    + sum([0 0 86; 105 0 114; 0 0 0] .* Rc) + sum([2500, 1500, 2000] .* Yc));
 
 @constraint(waste_c, city[i in I], sum(Wc[i,:]) == production[i]);
 @constraint(waste_c, wte, Wc[1,1] + Wc[2,1] + Rc[2,1] <= 150);
@@ -228,26 +248,39 @@ optimize!(waste_c)
 ```
 
 ## Problem 2.3
-The objective value in dollars is:
+The objective value or cost of disposal in dollars is:
 ```julia
 round(objective_value(waste_c), digits=2)
 ```
+
+
 The statuses of the disposal are
 ```julia
 value.(Yc)
 ```
-The waste transported to each city is
+
+
+The waste transported from each city in Mg/day is
 ```julia
 value.(Wc)
 ```
-The residual waste transported to each facility is 
+
+
+The residual waste transported between each facility in Mg/day is 
 ```julia
 value.(Rc)
 ```
 
+
 From these values, we get the diagram below:
-![Waste Management Diagram with Carbon Tax](waste2.png).
+![Waste Management Diagram with Carbon Tax](waste2.png)
+
+In the new plan, we now will be using MRF but will no longer be using the WTE facility.
+Additionally, the cost is now 4244.77 dollars more expensive than the previous plan. 
 
 
 # References
 Lecutre 13 from https://viveks.me/environmental-systems-analysis/schedule/
+https://tex.stackexchange.com/questions/46189/how-do-i-add-a-line-break-in-display-math-mode
+http://www.emerson.emory.edu/services/latex/latex_119.html
+
