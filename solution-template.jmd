@@ -21,20 +21,20 @@ Pkg.instantiate()
 ## Problem 1.1
 ```julia
 #given information
-disposal_facility = ["landfill", "recycling", "WTE"];
-capacity = [200, 350, 150]; #in Mg/d
-fixed_cost = [2000, 1500, 2500]; #in $/d
-tipping_fee = [50, 7, 60]; #in $/Mg
+disposal_facility = ["WTE", "recycling", "landfill"];
+capacity = [150, 350, 200]; #in Mg/d
+fixed_cost = [2500, 1500, 2000]; #in $/d
+tipping_fee = [60, 7, 50]; #in $/Mg
 recycling_cost = [0, 45, 0]; #in $/Mg
 
 transportation_cost = 1.5; #in $/Mg-km
 
-dist_to = ["landfill", "MRF", "WTE"];
-dist_1 = [30, 5, 15]; #in km
-dist_2 = [25, 15, 10]; #in km
-dist_MRF = [32, 0, 15]; #in km
-dist_LF = [0, 32, 18]; #in km
-dist_WTE = [18, 15, 0]; #in km
+dist_to = ["WTE", "MRF", "landfill"];
+dist_1 = [15, 5, 30]; #in km
+dist_2 = [10, 15, 25]; #in km
+dist_MRF = [15, 0, 32]; #in km
+dist_LF = [8, 32, 0]; #in km
+dist_WTE = [0, 15, 18]; #in km
 
 source = ["city 1", "city 2"];
 production = [100, 170]; #in Mg/day
@@ -79,41 +79,175 @@ J = 1:length(disposal_facility);
 ```
 
 ## Problem 1.3
-```julia
+The objective of this function is to minimize the total cost of waste disposal.
+Here, the cost includes fixed costs, tipping fee, recylcing cost, and transportation costs.
+For WTE costs, we have:
+```math
+2500*Y_1 + 60*(W_{1,1} + W_{2,1} + R_{2,1})
+```
+For MRF costs, we have:
+```math
+1500*Y_2 + 7*(W_{1,2} + W_{2,2}) + 0.378*(45)*(W_{1,2} + W_{2,2})
+```
+For LF costs, we have:
+```math
+2000*Y_3 + 50*(W_{1,3} + W_{2,3} + R_{1,3} + R_{2,3})
+```
+For transportation cost, we have:
+```math
+1.5*[15*W_{1,1} + 5*W_{1,2} + 30*W_{1,3} + 10*W_{2,1} + 15*W_{2,2} + 25*W_{2,3} + 18*R_{1,3} + 15*R_{2,1} + 32*R_{2,3}]
+```
 
+We want to minimize the sum of all these costs as our objective.
+
+```julia
+@objective(waste, Min, sum([82.5 31.5 95; 75 46.51 87.5] .* W) + sum([0 0 77; 82.5 0 98; 0 0 0] .* R) + sum([2500, 1500, 2000] .* Y));
 ```
 
 ## Problem 1.4
-```julia
+One constraint is that all the waste and recycling must stay within the disposal facility's capacities.  
+For WTE, 
+```math
+W_{1,1} + W_{2,1} + R_{2,1} ≤ 150
+```
+For MRF,
+```math
+W_{1,2} + W_{2,2} ≤ 130
+```
+For LF,
+```math
+W_{1,3} + W_{2,3} + R_{2,3} ≤ 200
+```
+Another constraint is that any waste from the WTE must equal to the ash producesd.
+```math
+R_{1,3} = ash_frac * (W_{1,1} + W_{2,1} + R_{2,1})
+```
+Additionally, any waste from the MRF must equal the nonrecycled waste that entered the MRF.
+```math
+R_{2,1} + R_{2,3} = (1-recycling_frac) * (W_{1,2} + W_{2,2})
+```
+Lastly, we needd to make sure that the waste streams are nonnegative. 
 
+```julia
+@constraint(waste, city[i in I], sum(W[i,:]) == production[i]);
+@constraint(waste, wte, W[1,1] + W[2,1] + R[2,1] <= 150);
+@constraint(waste, mrf, W[1,2] + W[2,2]  <= 350);
+@constraint(waste, lf, W[1,3] + W[2,3] + R[2,3] + R[1,3] <= 200);
+
+@constraint(waste, resid1, R[1,3] == ash_frac .* (W[1,1] + W[2,1] + R[2,1]));
+@constraint(waste, resid2, R[2,1] + R[2,3] == (1-recycling_frac) .* (W[1,2] + W[2,2]));
+@constraint(waste, resid3, sum(R[3,:]) == 0);
+@constraint(waste, noresiddiag, sum(R[i, i] for i in I) == 0);
+@constraint(waste, noresid, R[1,2] == 0);
+
+@constraint(waste, commit1, !Y[1] => {W[1,1] + W[2,1] + R[2,1] == 0});
+@constraint(waste, commit2, !Y[2] => {W[1,2] + W[2,2] == 0});
+@constraint(waste, commit3, Y[3] == 1);
 ```
 
 ## Problem 1.5
 ```julia
+set_silent(waste)
 optimize!(waste)
-objective_value(waste)
 ```
 
 ## Problem 1.6
+The objective value in dollars is:
 ```julia
-
+round(objective_value(waste), digits=2)
 ```
+The statuses of the disposal are
+```julia
+value.(Y)
+```
+The waste transported to each city is
+```julia
+value.(W)
+```
+The residual waste transported to each facility is 
+```julia
+value.(R)
+```
+
+From these values, we get the diagram below:
+![Waste Management Diagram](waste1.png).
 
 # Problem 2
 
 ## Problem 2.1
-```julia
-
+The variables and constraints will remain the same, but the objective will change now that the costs are changing. 
+For WTE costs, we now have:
+```math
+2500*Y_1 + 75*(W_{1,1} + W_{2,1} + R_{2,1})
+```
+For MRF costs, we still have:
+```math
+1500*Y_2 + 7*(W_{1,2} + W_{2,2}) + 0.378*(45)*(W_{1,2} + W_{2,2})
+```
+For LF costs, we still have:
+```math
+2000*Y_3 + 50*(W_{1,3} + W_{2,3} + R_{1,3} + R_{2,3})
+```
+For transportation cost, we now have:
+```math
+2*[15*W_{1,1} + 5*W_{1,2} + 30*W_{1,3} + 10*W_{2,1} + 15*W_{2,2} + 25*W_{2,3} + 18*R_{1,3} + 15*R_{2,1} + 32*R_{2,3}]
 ```
 
 ## Problem 2.2
 ```julia
+using JuMP
+using Cbc
 
+waste_c = Model(Cbc.Optimizer);
+I = 1:length(source);
+J = 1:length(disposal_facility);
+
+@variable(waste_c, Wc[i in I, j in J] >= 0);
+@variable(waste_c, Rc[k in J, j in J] >= 0);
+@variable(waste_c, Yc[j in J], Bin);
+
+#@objective(waste_c, Min, sum([82.5 31.5 95; 75 46.51 87.5] .* W) + sum([0 0 77; 82.5 0 98; 0 0 0] .* R) + sum([2500, 1500, 2000] .* Y));
+
+@constraint(waste_c, city[i in I], sum(W[i,:]) == production[i]);
+@constraint(waste_c, wte, Wc[1,1] + Wc[2,1] + Rc[2,1] <= 150);
+@constraint(waste_c, mrf, Wc[1,2] + Wc[2,2]  <= 350);
+@constraint(waste_c, lf, Wc[1,3] + Wc[2,3] + Rc[2,3] + Rc[1,3] <= 200);
+
+@constraint(waste_c, resid1, Rc[1,3] == ash_frac .* (Wc[1,1] + Wc[2,1] + Rc[2,1]));
+@constraint(waste_c, resid2, Rc[2,1] + Rc[2,3] == (1-recycling_frac) .* (Wc[1,2] + Wc[2,2]));
+@constraint(waste_c, resid3, sum(Rc[3,:]) == 0);
+@constraint(waste_c, noresiddiag, sum(Rc[i, i] for i in I) == 0);
+@constraint(waste_c, noresid, Rc[1,2] == 0);
+
+@constraint(waste_c, commit1, !Yc[1] => {Wc[1,1] + Wc[2,1] + Rc[2,1] == 0});
+@constraint(waste_c, commit2, !Yc[2] => {Wc[1,2] + Wc[2,2] == 0});
+@constraint(waste_c, commit3, Yc[3] == 1);
+
+set_silent(waste_c)
+optimize!(waste_c)
 ```
 
 ## Problem 2.3
+The objective value in dollars is:
 ```julia
+round(objective_value(waste_c), digits=2)
+```
+The statuses of the disposal are
+```julia
+value.(Yc)
+```
+The waste transported to each city is
+```julia
+value.(Wc)
+```
+The residual waste transported to each facility is 
+```julia
+value.(Rc)
+```
 
+From these values, we get the diagram below:
+```julia
+![Waste Management Diagram](waste2.png).
 ```
 
 # References
